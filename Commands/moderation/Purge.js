@@ -1,53 +1,114 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
-const wait = require('node:timers/promises').setTimeout;
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ChannelType } from "discord.js";
+import { setTimeout as wait } from "node:timers/promises";
 
-module.exports = 
-{
-    data: new SlashCommandBuilder()
-    .setName("purge")
-    .setDescription("Deletes a specified amount of messages")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .setDMPermission(false)
-    .addStringOption((option) =>
-    option.setName("amount").setDescription("Provide the amount of messages to be deleted").setRequired(true))
-    .addUserOption((option) => 
-    option.setName("target").setDescription("Provide a user to delete messages from").setRequired(false)),
-    
-    async execute(interaction) {
-        const { channel, options } = interaction
-        const Amount = options.getString("amount")
-        const Target = options.getMember("target")
-        const Message = await channel.messages.fetch()
+import { deferReply, editReply } from "../../builders/interactions.js";
+import { createSlashCommand } from "../../builders/SlashCommands.js";
 
-        await interaction.deferReply({ephemeral: true});
-        interaction.editReply({content: `Please wait purge in process`, ephemeral: true})
-        await wait(2000)
+const validateAmount = (amount) => {
+	if (amount <= 0 || amount > 100) return { valid: false, error: "The amount must be at least 1 and cannot exceed 100." };
+	return { valid: true };
+};
 
-        if(Amount > 100 || Amount <= 0 )
-            return interaction.editReply({content: `The amount must be atleast a 1 but it can't exceed a 100`, ephemeral: true})
-        
-        let ToDelete = 0
-        const NormalPurge = [];
-        (await Message).filter((msg) => {
-        if(!msg.pinned && Amount > ToDelete) {NormalPurge.push(msg),ToDelete++}})
+const multple = (amount, text) => {
+	if (amount > 1) return `${text}s`;
+	else return text;
+};
 
-        if(Target) {
-            let ToDelete = 0
-            const filtered = [];
-            (await Message).filter((msg) => {
-            if(!msg.pinned && msg.author.id == Target.id && Amount > ToDelete){filtered.push(msg),ToDelete++}})
+const filterMessages = (messages, amount, options) => {
+	let deleted = 0;
+	const { target, search } = options;
 
-            await channel.bulkDelete(filtered, true).then(messages => {
-            if(messages.size > 1){TOT = `messages`}else{TOT = `message`}
-            interaction.editReply({content: `Cleared ${messages.size} ${TOT} From ${Target.user.tag}`, ephemeral: true})})
-        }
-        else { 
-            try {
-            await channel.bulkDelete(NormalPurge, true).then(messages => {
-            if(messages.size > 1){TOT = `messages`}else{TOT = `message`}
-            interaction.editReply({content: `Cleared ${messages.size} ${TOT} from this channel`, ephemeral: true})})
-            } catch {}
-        }
+	return messages.filter((msg) => {
+		const matchesSearch = !search || msg.content.toLowerCase().includes(search.toLowerCase());
 
-    }
-}
+		const matchesTarget = !target || msg.author.id === target.id;
+		const shouldDelete = !msg.pinned && matchesSearch && matchesTarget && deleted < amount;
+
+		if (shouldDelete) deleted++;
+		return shouldDelete;
+	});
+};
+
+export const data = createSlashCommand({
+	name: "purge",
+	description: "Deletes a specified amount of messages",
+	DefaultMemberPermissions: PermissionFlagsBits.Administrator,
+	options: [
+		{
+			name: "amount",
+			description: "Provide the amount of messages to be deleted",
+			type: "number",
+			minValue: 1,
+			maxValue: 100,
+			required: true,
+		},
+		{
+			name: "reason",
+			description: "Provide a reason for the purge",
+			type: "string",
+			required: true,
+			autocomplete: true,
+		},
+		{
+			name: "target",
+			description: "Provide a user to delete messages from",
+			type: "user",
+			required: false,
+		},
+		{
+			name: "channel",
+			description: "Provide a channel to delete messages from",
+			type: "channel",
+			required: false,
+			channelTypes: ChannelType.GuildText,
+		},
+		{
+			name: "search",
+			description: "Provide a search term to delete messages containing it",
+			type: "string",
+			autocomplete: true,
+			required: false,
+		},
+	],
+});
+
+export const autocomplete = async (interaction) => {
+	const { options } = interaction;
+
+	const focused = options.getFocused(true);
+
+	const choices = {
+		reason: ["Spam", "Inappropriate Content", "Off-topic", "Other"],
+		search: ["Popular Topics: Threads", "Sharding: Getting started", "Library: Voice Connections", "Interactions: Replying to slash commands", "Popular Topics: Embed preview"],
+	};
+
+	const filtered = choices[focused.name].filter((choice) => choice.toLowerCase().startsWith(focused.value.toLowerCase()));
+	await interaction.respond(filtered.map((choice) => ({ name: choice, value: choice })));
+};
+
+export const execute = async (interaction) => {
+	const { options } = interaction;
+	const amount = options.getNumber("amount");
+	const target = options.getMember("target");
+	const targetChannel = options.getChannel("channel");
+	const reason = options.getString("reason");
+	const searchTerm = options.getString("search");
+
+	const channel = targetChannel || interaction.channel;
+	const messages = await channel.messages.fetch();
+
+	await deferReply(interaction);
+	await editReply(interaction, `Please wait purge in process`);
+
+	await wait(2000);
+
+	const { valid, error } = validateAmount(amount);
+	if (!valid) return editReply(interaction, error);
+
+	const filteredMessages = filterMessages(messages, amount, { target, search: searchTerm });
+
+	await channel.bulkDelete(filteredMessages, true).then((deletedMessages) => {
+		const TOT = multple(deletedMessages.size, "message");
+		editReply(interaction, `Cleared ${deletedMessages.size} ${TOT}${target ? ` from ${target.user.tag}` : ""}`);
+	});
+};

@@ -1,34 +1,35 @@
-const { loadFiles } = require("../Functions/fileloader");
+import { loadFiles } from "../Functions/fileloader.js";
+import { pathToFileURL } from "url";
 
-async function loadEvents(client) {
-  console.time(`\x1b[32m✔\x1b[0m Events loaded in`)
-    
-  client.events = new Map()
-  const events = new Array()
-  const files = await loadFiles("Events");
+export const loadEvents = async (client) => {
+	console.time(`\x1b[32m✔\x1b[0m Events loaded in`);
 
-  for (const file of files) {
-    try {
-      const event = require(file);
-      const execute = (...args) => event.execute(...args, client);
-      const target = event.rest ? client.rest : client;
+	client.events = new Map();
+	const events = new Array();
+	const files = await loadFiles("Events");
 
-      target[event.once ? "once" : "on"](event.name, execute);
-      client.events.set(event.name, execute);
+	for (const file of files) {
+		try {
+			const eventModule = await import(pathToFileURL(file).href);
+			const event = eventModule.default ?? eventModule;
+			const execute = (...args) => event.execute(...args, client);
+			const target = event.rest ? client.rest : client;
 
-      events.push({Name: event.name, Status: "Online"})
+			target[event.once ? "once" : "on"](event.name, execute);
+			client.events.set(event.name, execute);
 
-    } catch (err) {
-      events.push({Name: file.split("/").pop().slice(0, -3), Status: "Ofline"})
-    }
-  }
+			events.push({ Name: event.name, Status: "Online" });
+		} catch (err) {
+			events.push({ Name: file.split("/").pop().slice(0, -3), Status: "Ofline" });
+		}
+	}
 
-  console.clear();
-  console.timeEnd('\x1b[32m✔\x1b[0m Events loaded in'); console.log();
+	console.clear();
+	console.timeEnd("\x1b[32m✔\x1b[0m Events loaded in");
+	console.log();
 
-  for (const item of events) {
-    console.log(`  \x1b[${item.Status === 'Online' ? '32' : '31'}m> ${item.Status === 'Online' ? 'Event' : 'Error'}:\x1b[0m ${item.Name} ${item.Status === 'Online' ? 'loaded' : 'failed to load'}`);
-  } console.log();
-
-}
-module.exports = { loadEvents };
+	for (const item of events) {
+		console.log(`  \x1b[${item.Status === "Online" ? "32" : "31"}m> ${item.Status === "Online" ? "Event" : "Error"}:\x1b[0m ${item.Name} ${item.Status === "Online" ? "loaded" : "failed to load"}`);
+	}
+	console.log();
+};
