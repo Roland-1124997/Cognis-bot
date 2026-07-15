@@ -13,7 +13,7 @@ export const execute = async (interaction, client) => {
 
 	const command = client.commands.get(interaction.commandName);
 	if (!command) return sendReply(interaction, "An error has occured");
-	if (command.developer && interaction.user.id !== "322393281306689536") return sendReply(interaction, "This is a developer only command");
+	if (command.developer && interaction.user.id !== process.env.DISCORD_OWNER_ID) return sendReply(interaction, "This is a developer only command");
 
 	command.execute(interaction, client);
 };
