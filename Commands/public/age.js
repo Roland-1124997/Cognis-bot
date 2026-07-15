@@ -1,4 +1,4 @@
-import { createSlashCommand } from "../../builders/SlashCommands.js";
+import { createSlashCommand } from "../../builders/slashCommands.js";
 import { sendReply } from "../../builders/interactions.js";
 import { PermissionFlagsBits } from "discord.js";
 

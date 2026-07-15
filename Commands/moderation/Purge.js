@@ -2,7 +2,7 @@ import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ChannelType } f
 import { setTimeout as wait } from "node:timers/promises";
 
 import { deferReply, editReply } from "../../builders/interactions.js";
-import { createSlashCommand } from "../../builders/SlashCommands.js";
+import { createSlashCommand } from "../../builders/slashCommands.js";
 
 const validateAmount = (amount) => {
 	if (amount <= 0 || amount > 100) return { valid: false, error: "The amount must be at least 1 and cannot exceed 100." };
