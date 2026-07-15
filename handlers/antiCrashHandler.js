@@ -2,7 +2,7 @@ import { EmbedBuilder, WebhookClient } from "discord.js";
 import { inspect } from "util";
 
 const webhook = new WebhookClient({
-	url: process.env.webhookUrl,
+	url: process.env.DISCORD_WEBHOOK_URL,
 });
 
 export const AntiCrashHandler = async (client) => {

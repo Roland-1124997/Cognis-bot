@@ -14,5 +14,5 @@ client.modals = new Collection();
 await AntiCrashHandler(client);
 await loadEvents(client);
 
-await client.login(process.env.token);
+await client.login(process.env.DISCOTD_BOT_TOKEN);
 
