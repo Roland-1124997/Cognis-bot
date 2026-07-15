@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ChannelType } from "discord.js";
+import { PermissionFlagsBits, ChannelType } from "discord.js";
 import { setTimeout as wait } from "node:timers/promises";
 
 import { deferReply, editReply } from "../../builders/interactions.js";
